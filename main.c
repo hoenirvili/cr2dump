@@ -13,19 +13,16 @@
 
 // Kilobytes in bytes
 static const size_t KB = 1024;
+
 // Megabytes in bytes
 static const size_t MB = KB * 1024;
 
 // MB transform bytes to megabytes
-static float mb(size_t bytes) {
-    return bytes / MB;
-}
+static float mb(size_t bytes) { return bytes / MB; }
 
 static const int quit_key = 'q';
 
-static bool is_quit(int key) {
-    return (toupper(key) == toupper(quit_key));
-}
+static bool is_quit(int key) { return (toupper(key) == toupper(quit_key)); }
 
 // fsize returns the file size in bytes
 static int fsize(FILE *fp)
@@ -169,12 +166,10 @@ static void parse_all_ifds(
     }
 }
 
+static_assert((sizeof(struct entry) == SLOTS_PER_ENTRY));
+
 int main(int argc, char **argv)
 {
-    static_assert((sizeof(struct entry) == SLOTS_PER_ENTRY));
-    //TODO: fix this:
-    //assert_tag_type_str_list(tag_type_str_list);
-
     if (argc <= 1) {
         puts("Pass file path to CR2 file\n");
         return 1;

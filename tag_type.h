@@ -27,4 +27,3 @@ extern const char *tag_type_to_field_str(enum tag_type t);
 extern const char *tag_type_conv(enum tag_type t, const void* addr, size_t count);
 
 extern enum tag_type get_tag_type(uint16_t t);
-
