@@ -1,4 +1,4 @@
 all:
-	 gcc -g -std=gnu17 -o main tag_type.c main.c -lfort
+	 gcc -g -nostdinc++ -std=gnu17 -o main tag_type.c main.c -lfort
 run:
 	./main image.CR2

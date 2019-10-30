@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 enum tag_type {
     no_tag,                 /* here to occupy 0 */
@@ -24,6 +25,6 @@ enum tag_type {
 
 extern const char *tag_type_to_field_str(enum tag_type t);
 
-extern const char *tag_type_conv(enum tag_type t, const void* addr, size_t count);
+extern const char *tag_type_conv(FILE *fp, enum tag_type t, uint32_t addr, size_t count);
 
 extern enum tag_type get_tag_type(uint16_t t);

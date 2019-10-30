@@ -64,7 +64,6 @@ struct ifd {
     unsigned int next_ifd_offset;
 };
 
-
 // A TIFF tag, is a logical entity which consist in:
 // an record (Directory Entry) inside an IFD, and some data.
 // These two parts are generally separated.
@@ -73,9 +72,16 @@ struct ifd {
 struct entry {
     uint16_t tag_id;
     uint16_t tag_type;
-    uint32_t number_of_value;
+    uint32_t number_of_value; // maybe if this is 1 then it's a value and
+    // if this is > 1 it's a ptr?
     uint32_t value; // value, or pointer to the data
 }__attribute__((packed));
+
+static struct entry ifd_get_entry(struct ifd ifd, size_t i)
+{
+    assert(i < ifd.number_of_entries);
+    return ifd.entries[i];
+}
 
 static void dump_file_header(struct file_header header)
 {
@@ -121,7 +127,7 @@ static void parse_ifd(FILE *fp, unsigned int ifd_offset, struct ifd *ifd)
 
 static void free_ifd_entries(struct ifd ifd) { free(ifd.entries); }
 
-static void dump_ifd(struct ifd ifd, int count)
+static void dump_ifd(FILE *fp, struct ifd ifd, int count)
 {
     printf("IFD%d\n", count);
     ft_table_t *table = ft_create_table();
@@ -134,24 +140,27 @@ static void dump_ifd(struct ifd ifd, int count)
     printf("IFD%d addr entries %p details\n", count, ifd.entries);
     table = ft_create_table();
     ft_set_cell_prop(table, 0, FT_ANY_COLUMN, FT_CPROP_ROW_TYPE, FT_ROW_HEADER);
-    ft_write_ln(table, "tag_id", "tag_type", "number_of_values", "value_or_start_addr_to_data");
-    for (uint16_t i = 0; i < ifd.number_of_entries; i++)
-        ft_printf_ln(table, "%d|%s|%d|%#08x",
-                ifd.entries[i].tag_id,
-                tag_type_to_field_str(get_tag_type(ifd.entries[i].tag_type)),
-                ifd.entries[i].number_of_value,
-                ifd.entries[i].value);
+    ft_write_ln(table, "tag_id", "tag_type", "number_of_values", "value_or_start_addr_to_data", "unmarshal value");
+    for (uint16_t i = 0; i < ifd.number_of_entries; i++) {
+        struct entry entry = ifd_get_entry(ifd, i);
+        enum tag_type tag = get_tag_type(entry.tag_type);
+        const char *tag_str = tag_type_to_field_str(tag);
+        ft_printf_ln(table, "%d|%s|%d|%#016x|%s",
+                entry.tag_id, tag_str, entry.number_of_value, entry.value,
+                tag_type_conv(fp, tag, entry.value, entry.number_of_value));
+    }
+
     printf("%s", ft_to_string(table)); ft_destroy_table(table);
 }
 
 // The .CR2 file is based on the TIFF file format
 // This TIFF file has 4 Image File Directories (IFDs).
-#define MAX_NUMBER_OF_IFDS 4 // I'm not sure to be honest
+#define MAX_NUMBER_OF_IFDS 4
 
-static void dump_ifds(struct ifd *ifds, size_t nfds)
+static void dump_ifds(FILE *fp, struct ifd *ifds, size_t nfds)
 {
     for (int i = 0; i < nfds; i++)
-        dump_ifd(ifds[i], i);
+        dump_ifd(fp, ifds[i], i);
 }
 
 static void parse_all_ifds(
@@ -166,7 +175,8 @@ static void parse_all_ifds(
     }
 }
 
-static_assert((sizeof(struct entry) == SLOTS_PER_ENTRY));
+static_assert(sizeof(struct entry) == SLOTS_PER_ENTRY,
+        "this width of an entry should always be fixed to SLOTS_PER_ENTRY");
 
 int main(int argc, char **argv)
 {
@@ -201,7 +211,7 @@ int main(int argc, char **argv)
 
     struct ifd ifds[MAX_NUMBER_OF_IFDS] = { 0 };
     parse_all_ifds(cr, header.tiff_offset, ifds, MAX_NUMBER_OF_IFDS);
-    dump_ifds(ifds, MAX_NUMBER_OF_IFDS);
+    dump_ifds(cr, ifds, MAX_NUMBER_OF_IFDS);
 
     for (size_t i = 0; i < MAX_NUMBER_OF_IFDS; i++ )
         free_ifd_entries(ifds[i]);
