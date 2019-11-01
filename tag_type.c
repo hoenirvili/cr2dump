@@ -32,6 +32,8 @@ static const char *string_fn(FILE *fp, uint32_t addr, size_t count)
     return unsigned_char_fn(fp, addr, count);
 }
 
+#define WHEN_TO_ADD_NEWLINE 100
+
 #define CONVERSION_FN(name, type, tfmt)                                 \
 static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)     \
 {                                                                       \
@@ -46,12 +48,21 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)     \
         memcpy(_buff, &addr, sizeof(addr));                             \
     }                                                                   \
                                                                         \
-    size_t n = 0;                                                       \
+    ssize_t n = 0;                                                      \
+    size_t curr = 0;                                                    \
+    size_t when_to_add_newline = 0;                                     \
     for (size_t i = 0; i < count; i++) {                                \
-        n = sprintf(&buffer[n], #tfmt" ", _buff[i]);                    \
+        n = sprintf(&buffer[curr], #tfmt" ", _buff[i]);                 \
         if (n < 0) {                                                    \
             printf("snprintf() failed");                                \
             exit(1);                                                    \
+        }                                                               \
+        curr += n;                                                      \
+        when_to_add_newline += n;                                       \
+        if (when_to_add_newline >= WHEN_TO_ADD_NEWLINE) {               \
+            buffer[curr] = '\n';                                        \
+            curr++;                                                     \
+            when_to_add_newline = 0;                                    \
         }                                                               \
     }                                                                   \
                                                                         \

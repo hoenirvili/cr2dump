@@ -150,6 +150,7 @@ static void dump_ifd(FILE *fp, struct ifd ifd, int count)
                 tag_type_conv(fp, tag, entry.value, entry.number_of_value));
     }
 
+    ft_set_cell_prop(table, FT_ANY_ROW, 5, FT_CPROP_TEXT_ALIGN, FT_CPROP_CONT_TEXT_STYLE);
     printf("%s", ft_to_string(table)); ft_destroy_table(table);
 }
 
