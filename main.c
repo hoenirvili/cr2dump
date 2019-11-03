@@ -137,21 +137,19 @@ static void dump_ifd(FILE *fp, struct ifd ifd, int count)
     printf("%s", ft_to_string(table));
     ft_destroy_table(table);
 
-    printf("IFD%d addr entries %p details\n", count, ifd.entries);
-    table = ft_create_table();
+    printf("IFD%d addr entries %p details\n", count, ifd.entries); table = ft_create_table();
     ft_set_cell_prop(table, 0, FT_ANY_COLUMN, FT_CPROP_ROW_TYPE, FT_ROW_HEADER);
     ft_write_ln(table, "tag_id", "tag_type", "number_of_values", "value_or_start_addr_to_data", "unmarshal value");
     for (uint16_t i = 0; i < ifd.number_of_entries; i++) {
         struct entry entry = ifd_get_entry(ifd, i);
         enum tag_type tag = get_tag_type(entry.tag_type);
         const char *tag_str = tag_type_to_field_str(tag);
-        ft_printf_ln(table, "%d|%s|%d|%#016x|%s",
+        ft_printf_ln(table, "%d|%s|%d|%#08x|%s",
                 entry.tag_id, tag_str, entry.number_of_value, entry.value,
                 tag_type_conv(fp, tag, entry.value, entry.number_of_value));
     }
-
-    ft_set_cell_prop(table, FT_ANY_ROW, 5, FT_CPROP_TEXT_ALIGN, FT_CPROP_CONT_TEXT_STYLE);
-    printf("%s", ft_to_string(table)); ft_destroy_table(table);
+    printf("%s", ft_to_string(table));
+    ft_destroy_table(table);
 }
 
 // The .CR2 file is based on the TIFF file format

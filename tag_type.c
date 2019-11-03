@@ -1,10 +1,56 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include "tag_type.h"
 
 // let it be 8k bytes, should be enough, (IDK to be honst)
 #define MAX_BUFFER_SIZE 8192 + 1
+
+static void normalize_string(char *buffer)
+{
+    int n = strlen(buffer);
+
+    assert (n < MAX_BUFFER_SIZE);
+    char *buff = alloca(n * sizeof *buffer);
+    if (buff == NULL) {
+        printf("alloca() failed");
+        exit(1);
+    }
+    memset(buff, 0, n * sizeof *buffer);
+    int last_index_space = -1;
+    size_t count = 0;
+    for (int i = 0, j = 0; i < n && j < n; i++) {
+        if (buffer[i] == '\n')
+            continue;
+
+        if (isspace(buffer[i])) {
+            if (j - 1 >= 0) {
+                if (isspace(buff[j-1]))
+                    continue;
+            } else
+                continue;
+        }
+
+        buff[j] = buffer[i];
+        //TODO: hanlde newline addition better
+        if ((count % 50 == 0) && (j+1 < n)) {
+            if (isspace(buff[j])) {
+                buff[j] = '\n';
+                count = 0;
+                continue;
+            }
+            buff[j+1] = '\n';
+            count = 0;
+        }
+
+        j++;
+        count++;
+    }
+
+    memset(buffer, 0, n * sizeof *buffer);
+    memcpy(buffer, buff, n * sizeof *buffer);
+}
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -20,6 +66,9 @@ static const char *unsigned_char_fn(FILE *fp, uint32_t addr, size_t count)
     fseek(fp, addr, SEEK_SET);
     fread(buffer, 1, count, fp);
     rewind(fp);
+    if (addr == 0x0000000000b05c) {
+        normalize_string(buffer);
+    }
     return buffer;
 }
 
@@ -32,63 +81,115 @@ static const char *string_fn(FILE *fp, uint32_t addr, size_t count)
     return unsigned_char_fn(fp, addr, count);
 }
 
-#define WHEN_TO_ADD_NEWLINE 100
-
-#define CONVERSION_FN(name, type, tfmt)                                 \
-static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)     \
-{                                                                       \
-    assert(MAX_BUFFER_SIZE > (sizeof(type) * count));                   \
-    memset(buffer, 0, sizeof(buffer));                                  \
-    type _buff[count];                                                  \
-    memset(_buff, 0, sizeof(_buff));                                    \
-    if (count > 1) {                                                    \
-        fseek(fp, addr, SEEK_SET);                                      \
-        fread(_buff, sizeof(type), count, fp);                          \
-    } else if (count == 1){                                             \
-        memcpy(_buff, &addr, sizeof(addr));                             \
-    }                                                                   \
-                                                                        \
-    ssize_t n = 0;                                                      \
-    size_t curr = 0;                                                    \
-    size_t when_to_add_newline = 0;                                     \
-    for (size_t i = 0; i < count; i++) {                                \
-        n = sprintf(&buffer[curr], #tfmt" ", _buff[i]);                 \
-        if (n < 0) {                                                    \
-            printf("snprintf() failed");                                \
-            exit(1);                                                    \
-        }                                                               \
-        curr += n;                                                      \
-        when_to_add_newline += n;                                       \
-        if (when_to_add_newline >= WHEN_TO_ADD_NEWLINE) {               \
-            buffer[curr] = '\n';                                        \
-            curr++;                                                     \
-            when_to_add_newline = 0;                                    \
-        }                                                               \
-    }                                                                   \
-                                                                        \
-    if (count > 1)                                                      \
-        rewind(fp);                                                     \
-                                                                        \
-    return buffer;                                                      \
-}
-
-CONVERSION_FN(unsigned_short, uint16_t, "%hu")
-CONVERSION_FN(unsigned_long, uint32_t, "%d")
-CONVERSION_FN(signed_char, char, "%c")
-CONVERSION_FN(byte_sequence, uint8_t, "%x")
-CONVERSION_FN(signed_short, int16_t, "%d")
-CONVERSION_FN(signed_long, int32_t, "%d")
-CONVERSION_FN(float_4_byte, float, "%f")
-CONVERSION_FN(float_8_byte, double, "%f")
+#define WHEN_TO_ADD_NEWLINE 50
 
 struct signed_rational { long p, q; };
+struct unsigned_rational { unsigned long p, q; };
+
+#define CONVERSION_RATIONAL_FN(name, type, tfmt)                            \
+static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)         \
+{                                                                           \
+    type _buffer[count];                                                    \
+    fseek(fp, addr, SEEK_SET);                                              \
+    fread(_buffer, sizeof(_buffer[0]), count, fp);                          \
+    const char *sfmt = #tfmt" ";                                            \
+    const char *nfmt = #tfmt"\n";                                           \
+    ssize_t left_over = sizeof(buffer);                                     \
+    ssize_t n = 0;                                                          \
+    size_t add_line = 0;                                                    \
+    size_t current = 0;                                                     \
+    for (size_t i = 0; i < count; i++) {                                    \
+        const char *fmt = sfmt;                                             \
+        n = snprintf(NULL, 0, fmt, _buffer[i].p, _buffer[i].q);             \
+        if (n < 0) {                                                        \
+            printf("sprintf count failed\n");                               \
+            exit(1);                                                        \
+        }                                                                   \
+        left_over = left_over - n;                                          \
+        if (left_over <= 0) {                                               \
+            printf("cannot write more bytes into buffer\n");                \
+            exit(1);                                                        \
+        }                                                                   \
+        add_line += n;                                                      \
+        if (add_line >= WHEN_TO_ADD_NEWLINE) {                              \
+            fmt = nfmt;                                                     \
+            add_line = 0;                                                   \
+        }                                                                   \
+        n = sprintf(&buffer[current], fmt, _buffer[i].p, _buffer[i].q);     \
+        if (n < 0) {                                                        \
+            printf("sprintf() failed\n");                                   \
+            exit(1);                                                        \
+        }                                                                   \
+        current += n;                                                       \
+    }                                                                       \
+    rewind(fp);                                                             \
+    return buffer;                                                          \
+}
+
+CONVERSION_RATIONAL_FN(unsigned_rational, struct unsigned_rational, %#08x/%#08x)
+CONVERSION_RATIONAL_FN(signed_rational, struct signed_rational, %#08x/%#08x)
+
+#define CONVERSION_FN(name, type, tfmt)                                         \
+static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             \
+{                                                                               \
+    type _buffer[count];                                                        \
+    if (count > 1) {                                                            \
+        fseek(fp, addr, SEEK_SET);                                              \
+        fread(&_buffer[0], sizeof(_buffer[0]), count, fp);                      \
+    } else {                                                                    \
+        memcpy(_buffer, &addr, sizeof(_buffer[0]));                             \
+    }                                                                           \
+    const char *sfmt = #tfmt" ";                                                \
+    const char *nfmt = #tfmt"\n";                                               \
+    ssize_t left_over = sizeof(buffer);                                         \
+    ssize_t n = 0;                                                              \
+    size_t add_line = 0;                                                        \
+    size_t current = 0;                                                         \
+    for (size_t i = 0; i < count; i++) {                                        \
+        const char *fmt = sfmt;                                                 \
+        n = snprintf(NULL, 0, fmt, _buffer[i]);                                 \
+        if (n < 0) {                                                            \
+            printf("sprintf count failed\n");                                   \
+            exit(1);                                                            \
+        }                                                                       \
+        left_over = left_over - n;                                              \
+        if (left_over <= 0) {                                                   \
+            printf("cannot write more bytes into buffer\n");                    \
+            exit(1);                                                            \
+        }                                                                       \
+        add_line += n;                                                          \
+        if (add_line >= WHEN_TO_ADD_NEWLINE) {                                  \
+            fmt = nfmt;                                                         \
+            add_line = 0;                                                       \
+        }                                                                       \
+        n = sprintf(&buffer[current], fmt, _buffer[i]);                         \
+        if (n < 0) {                                                            \
+            printf("sprintf() failed\n");                                       \
+            exit(1);                                                            \
+        }                                                                       \
+        current += n;                                                           \
+    }                                                                           \
+    if (count > 1)                                                              \
+        rewind(fp);                                                             \
+    return buffer;                                                              \
+}
+
+CONVERSION_FN(unsigned_short, uint16_t, %hu)
+CONVERSION_FN(unsigned_long, uint32_t, %d)
+CONVERSION_FN(signed_char, char, %c)
+CONVERSION_FN(byte_sequence, uint8_t, %x)
+CONVERSION_FN(signed_short, int16_t, %d)
+CONVERSION_FN(signed_long, int32_t, %d)
+CONVERSION_FN(float_4_byte, float, %f)
+CONVERSION_FN(float_8_byte, double, %f)
+
 
 static const char *tag_type_str_list[] = {
     "no tag specified",
     "unsigned char",
-    "string (with an ending zero",
+    "string (with an ending zero)",
     "unsigned short (2 bytes)",
-    "unsigned long (4 bytes)",
+    "unsigned long  (4 bytes)",
     "unsigned rational (2 unsinged long)",
     "signed char",
     "byte sequence",
@@ -110,12 +211,12 @@ struct tag_type_table {
     { string_fn },
     { unsigned_short_fn },
     { unsigned_long_fn },
-    //{ unsigned_rational_fn },
+    { unsigned_rational_fn },
     { signed_char_fn },
     { byte_sequence_fn },
     { signed_short_fn },
     { signed_long_fn },
-    //{ signed_rational_fn },
+    { signed_rational_fn },
     { float_4_byte_fn },
     { float_8_byte_fn },
 };
