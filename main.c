@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
-#include <fort.h>
 #include <assert.h>
 
 #include "tag_type.h"
@@ -86,21 +85,11 @@ static struct entry ifd_get_entry(struct ifd ifd, size_t i)
 static void dump_file_header(struct file_header header)
 {
     puts("HEADER");
-    ft_table_t *table = ft_create_table();
-    ft_set_cell_prop(table, 0, FT_ANY_COLUMN, FT_CPROP_ROW_TYPE, FT_ROW_HEADER);
-    ft_write_ln(table,
-            "byte_order", "tiff_magic_word", "tiff_offset", "crw_magic_word",
-            "cr2_major_version", "cr2_minor_version", "raw_ifd_offset");
-    ft_printf_ln(table, "%2.2s|%#06hx|%#08x|%2.2s|%d|%d|%#08x",
-            header.byte_order,
-            header.tiff_magic_word,
-            header.tiff_offset,
-            header.cr2_magic_word,
-            header.cr2_major_version,
-            header.cr2_minor_version,
-            header.raw_ifd_offset);
-    printf("%s\n", ft_to_string(table));
-    ft_destroy_table(table);
+    printf("byte_order: %2.2s\n", header.byte_order);
+    printf("tiff_magic_word: %#06hx\n", header.tiff_magic_word);
+    printf("cr2_major_version: %d\n", header.cr2_major_version);
+    printf("cr2_minor_version: %d\n", header.cr2_minor_version);
+    printf("raw_ifd_offset: %d\n\n\n", header.raw_ifd_offset);
 }
 
 static void parse_file_header(FILE *fp, struct file_header *header)
@@ -129,27 +118,24 @@ static void free_ifd_entries(struct ifd ifd) { free(ifd.entries); }
 
 static void dump_ifd(FILE *fp, struct ifd ifd, int count)
 {
-    printf("IFD%d\n", count);
-    ft_table_t *table = ft_create_table();
-    ft_set_cell_prop(table, 0, FT_ANY_COLUMN, FT_CPROP_ROW_TYPE, FT_ROW_HEADER);
-    ft_write_ln(table, "number_of_entries", "entries", "next_ifd_offset");
-    ft_printf_ln(table, "%d|in mem %p|%#08x", ifd.number_of_entries, ifd.entries, ifd.next_ifd_offset);
-    printf("%s", ft_to_string(table));
-    ft_destroy_table(table);
-
-    printf("IFD%d addr entries %p details\n", count, ifd.entries); table = ft_create_table();
-    ft_set_cell_prop(table, 0, FT_ANY_COLUMN, FT_CPROP_ROW_TYPE, FT_ROW_HEADER);
-    ft_write_ln(table, "tag_id", "tag_type", "number_of_values", "value_or_start_addr_to_data", "unmarshal value");
+    printf("IFD%d number_of_entries: %d, in mem: %p, next_ifd_offset: %#08x\n\n",
+            count,
+            ifd.number_of_entries,
+            ifd.entries,
+            ifd.next_ifd_offset);
     for (uint16_t i = 0; i < ifd.number_of_entries; i++) {
+        printf("entry number: %d\n", i);
         struct entry entry = ifd_get_entry(ifd, i);
         enum tag_type tag = get_tag_type(entry.tag_type);
         const char *tag_str = tag_type_to_field_str(tag);
-        ft_printf_ln(table, "%d|%s|%d|%#08x|%s",
-                entry.tag_id, tag_str, entry.number_of_value, entry.value,
-                tag_type_conv(fp, tag, entry.value, entry.number_of_value));
+        const char *payload = tag_type_conv(
+                fp, tag, entry.value, entry.number_of_value);
+        printf("tag_id: %d, ", entry.tag_id);
+        printf("tag_type: %s, ", tag_str);
+        printf("number_of_values: %d, ", entry.number_of_value);
+        printf("value_or_start_addr_to_data: %#08x, ", entry.value);
+        printf("unmarshal value: \"%s\"\n", payload);
     }
-    printf("%s", ft_to_string(table));
-    ft_destroy_table(table);
 }
 
 // The .CR2 file is based on the TIFF file format
@@ -158,8 +144,12 @@ static void dump_ifd(FILE *fp, struct ifd ifd, int count)
 
 static void dump_ifds(FILE *fp, struct ifd *ifds, size_t nfds)
 {
-    for (int i = 0; i < nfds; i++)
+    for (int i = 0; i < nfds; i++) {
+        puts("\n");
         dump_ifd(fp, ifds[i], i);
+        //TODO: remove this
+        return;
+    }
 }
 
 static void parse_all_ifds(
@@ -211,7 +201,6 @@ int main(int argc, char **argv)
     struct ifd ifds[MAX_NUMBER_OF_IFDS] = { 0 };
     parse_all_ifds(cr, header.tiff_offset, ifds, MAX_NUMBER_OF_IFDS);
     dump_ifds(cr, ifds, MAX_NUMBER_OF_IFDS);
-
     for (size_t i = 0; i < MAX_NUMBER_OF_IFDS; i++ )
         free_ifd_entries(ifds[i]);
 

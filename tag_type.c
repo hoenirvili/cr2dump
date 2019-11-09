@@ -7,51 +7,6 @@
 // let it be 8k bytes, should be enough, (IDK to be honst)
 #define MAX_BUFFER_SIZE 8192 + 1
 
-static void normalize_string(char *buffer)
-{
-    int n = strlen(buffer);
-
-    assert (n < MAX_BUFFER_SIZE);
-    char *buff = alloca(n * sizeof *buffer);
-    if (buff == NULL) {
-        printf("alloca() failed");
-        exit(1);
-    }
-    memset(buff, 0, n * sizeof *buffer);
-    int last_index_space = -1;
-    size_t count = 0;
-    for (int i = 0, j = 0; i < n && j < n; i++) {
-        if (buffer[i] == '\n')
-            continue;
-
-        if (isspace(buffer[i])) {
-            if (j - 1 >= 0) {
-                if (isspace(buff[j-1]))
-                    continue;
-            } else
-                continue;
-        }
-
-        buff[j] = buffer[i];
-        //TODO: hanlde newline addition better
-        if ((count % 50 == 0) && (j+1 < n)) {
-            if (isspace(buff[j])) {
-                buff[j] = '\n';
-                count = 0;
-                continue;
-            }
-            buff[j+1] = '\n';
-            count = 0;
-        }
-
-        j++;
-        count++;
-    }
-
-    memset(buffer, 0, n * sizeof *buffer);
-    memcpy(buffer, buff, n * sizeof *buffer);
-}
-
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 // we could alloc memory for ever str conversion but I'm a cheap asshole
@@ -66,9 +21,6 @@ static const char *unsigned_char_fn(FILE *fp, uint32_t addr, size_t count)
     fseek(fp, addr, SEEK_SET);
     fread(buffer, 1, count, fp);
     rewind(fp);
-    if (addr == 0x0000000000b05c) {
-        normalize_string(buffer);
-    }
     return buffer;
 }
 
