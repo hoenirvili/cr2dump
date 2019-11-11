@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include "tag_type.h"
 
 // let it be 8k bytes, should be enough, (IDK to be honst)
@@ -22,6 +23,42 @@ static const char *unsigned_char_fn(FILE *fp, uint32_t addr, size_t count)
     fread(buffer, 1, count, fp);
     rewind(fp);
     return buffer;
+}
+
+static bool is_bad_char(char chr)
+{
+    return ((isspace(chr)) && (chr == '\n'));
+}
+
+// a b d x x k k x
+//       |
+// a b d x k k x \0
+
+static void shift_to_left(char *buffer, size_t n)
+{
+    size_t m = n;
+    for (size_t i = 0; i < m; i++) {
+        buffer[i] = buffer[i+1];
+        m--;
+    }
+    buffer[n-1] = '\0'; // always end it with a new line
+}
+
+static void trim_unecessary_whitespace(char *buffer)
+{
+    size_t n = MAX_BUFFER_SIZE;
+    bool isspace_char = false;
+    for (size_t i = 0; i < n; i++) {
+        if (isspace(buffer[i])) {
+            if (isspace_char == false) {
+                isspace_char = true;
+                continue;
+            }
+        }
+        if ((isspace_char) && is_bad_char(buffer[i])) {
+            shift_to_left(buffer + i , n);
+        }
+    }
 }
 
 static const char *string_fn(FILE *fp, uint32_t addr, size_t count)
