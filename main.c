@@ -19,10 +19,6 @@ static const size_t MB = KB * 1024;
 // MB transform bytes to megabytes
 static float mb(size_t bytes) { return bytes / MB; }
 
-static const int quit_key = 'q';
-
-static bool is_quit(int key) { return (toupper(key) == toupper(quit_key)); }
-
 // fsize returns the file size in bytes
 static int fsize(FILE *fp)
 {

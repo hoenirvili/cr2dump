@@ -10,56 +10,61 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
+static bool is_bad_char(char a)
+{
+    return (isspace(a) || a == '\n');
+}
+
+static size_t next_good_char_at(char *buff, size_t from, size_t n)
+{
+    for (size_t i = from; i < n; i++)
+        if (!is_bad_char(buff[i]))
+            return i;
+    return 0;
+}
+
+static void fold(char *buff, size_t from, size_t to, size_t n)
+{
+    assert(from < to);
+    while (to < n) {
+        buff[from] = buff[to];
+        from++;
+        to++;
+    }
+    assert(from < n);
+    memset(&buff[from], 0, n - from);
+}
+
+static void trim_unnecessary_chars(char *buff, size_t n)
+{
+    size_t to = 0;
+    for (size_t from = 0; from < n; from++) {
+        if (is_bad_char(buff[from])) {
+            to = next_good_char_at(buff, from+1, n);
+            if (to == 0)
+                break;
+            fold(buff, from, to, n);
+        }
+    }
+}
 // we could alloc memory for ever str conversion but I'm a cheap asshole
 static char buffer[MAX_BUFFER_SIZE];
 
 static const char *no_tag_specified_fn(FILE *fp, uint32_t addr, size_t count) { return NULL; }
 
+static_assert(sizeof(char) == 1, "char is one byte");
+
 static const char *unsigned_char_fn(FILE *fp, uint32_t addr, size_t count)
 {
-    assert(MAX_BUFFER_SIZE > sizeof(unsigned char) * count);
+    assert(MAX_BUFFER_SIZE > count);
     memset(buffer, 0, sizeof(buffer));
     fseek(fp, addr, SEEK_SET);
     fread(buffer, 1, count, fp);
     rewind(fp);
+    trim_unnecessary_chars(buffer, count);
     return buffer;
 }
 
-static bool is_bad_char(char chr)
-{
-    return ((isspace(chr)) && (chr == '\n'));
-}
-
-// a b d x x k k x
-//       |
-// a b d x k k x \0
-
-static void shift_to_left(char *buffer, size_t n)
-{
-    size_t m = n;
-    for (size_t i = 0; i < m; i++) {
-        buffer[i] = buffer[i+1];
-        m--;
-    }
-    buffer[n-1] = '\0'; // always end it with a new line
-}
-
-static void trim_unecessary_whitespace(char *buffer)
-{
-    size_t n = MAX_BUFFER_SIZE;
-    bool isspace_char = false;
-    for (size_t i = 0; i < n; i++) {
-        if (isspace(buffer[i])) {
-            if (isspace_char == false) {
-                isspace_char = true;
-                continue;
-            }
-        }
-        if ((isspace_char) && is_bad_char(buffer[i])) {
-            shift_to_left(buffer + i , n);
-        }
-    }
-}
 
 static const char *string_fn(FILE *fp, uint32_t addr, size_t count)
 {
@@ -171,7 +176,6 @@ CONVERSION_FN(signed_short, int16_t, %d)
 CONVERSION_FN(signed_long, int32_t, %d)
 CONVERSION_FN(float_4_byte, float, %f)
 CONVERSION_FN(float_8_byte, double, %f)
-
 
 static const char *tag_type_str_list[] = {
     "no tag specified",
