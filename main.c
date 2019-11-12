@@ -85,7 +85,7 @@ static void dump_file_header(struct file_header header)
     printf("tiff_magic_word: %#06hx\n", header.tiff_magic_word);
     printf("cr2_major_version: %d\n", header.cr2_major_version);
     printf("cr2_minor_version: %d\n", header.cr2_minor_version);
-    printf("raw_ifd_offset: %d\n\n\n", header.raw_ifd_offset);
+    printf("raw_ifd_offset: %#08x\n\n\n", header.raw_ifd_offset);
 }
 
 static void parse_file_header(FILE *fp, struct file_header *header)
@@ -124,7 +124,9 @@ static void dump_ifd(FILE *fp, struct ifd ifd, int count)
         struct entry entry = ifd_get_entry(ifd, i);
         enum tag_type tag = get_tag_type(entry.tag_type);
         const char *tag_str = tag_type_to_field_str(tag);
-        const char *payload = tag_type_conv(
+        const char *payload = "";
+        if (entry.value)
+            payload = tag_type_conv(
                 fp, tag, entry.value, entry.number_of_value);
         printf("tag_id: %d, ", entry.tag_id);
         printf("tag_type: %s, ", tag_str);
