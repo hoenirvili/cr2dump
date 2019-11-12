@@ -117,6 +117,7 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)         \
         current += n;                                                       \
     }                                                                       \
     rewind(fp);                                                             \
+    buffer[strlen(buffer)-1] = 0;                                           \
     return buffer;                                                          \
 }
 
@@ -165,6 +166,7 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             
     }                                                                           \
     if (count > 1)                                                              \
         rewind(fp);                                                             \
+    buffer[strlen(buffer)-1] = 0;                                               \
     return buffer;                                                              \
 }
 

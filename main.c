@@ -143,7 +143,6 @@ static void dump_ifds(FILE *fp, struct ifd *ifds, size_t nfds)
     for (int i = 0; i < nfds; i++) {
         puts("\n");
         dump_ifd(fp, ifds[i], i);
-        return;
     }
 }
 
