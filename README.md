@@ -2,14 +2,14 @@
 
 Small utility to dump CR2 header and all 4 IFD headers alongside with data that is unmarshalled into a more friendly format
 
-# How to run it?
+## How to run it?
 
 ```bash
     git clone https://github.com/hoenirvili/cr2dump && cd cr2dump 
     make
 ```
 
-# Run an example
+## Run an example
 
 ```bash
     # this will run ./main image.CR2 ( it's and image of my
