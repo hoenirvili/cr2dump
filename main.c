@@ -39,15 +39,39 @@ static int fsize(FILE *fp)
 
 // A Canon CRW file starts with the following byte sequence
 // contains the byte ordering, the version and the offset to the RAW picture
-struct file_header {
-    char byte_order[BYTE_ORDER_CHARS];
-    short tiff_magic_word;
-    unsigned int tiff_offset;
-    char cr2_magic_word[MAGIC_WORD_CHARS]; // or 0x4352
-    char cr2_major_version;
-    char cr2_minor_version;
-    unsigned int raw_ifd_offset;
+struct cr2_header{
+    char canon_raw_marker[MAGIC_WORD_CHARS];
+    uint16_t version;
+    uint32_t offset_to_raw_ifd;
 }__attribute__((packed));
+
+static void dump_cr2_header(struct cr2_header hdr)
+{
+    puts("\nCR2 Header\n");
+    printf("canon_raw_marker: %2.2s\n", hdr.canon_raw_marker);
+    printf("version: %d\n", hdr.version);
+    printf("offset_to_raw_ifd: %#08x\n", hdr.offset_to_raw_ifd);
+}
+
+static_assert(sizeof(struct cr2_header) == 8,
+        "cr2 header should be 8 bytes");
+
+struct tiff_header {
+    char endianness[BYTE_ORDER_CHARS];
+    uint16_t magic_number;
+    uint32_t offset_to_ifd;
+}__attribute__((packed));
+
+static_assert(sizeof(struct tiff_header) == 8,
+        "tiff header should be 8 bytes");
+
+static void dump_tiff_header(struct tiff_header hdr)
+{
+    puts("\nTIFF header\n");
+    printf("endianness: %2.2s\n", hdr.endianness);
+    printf("magic_number: %#06hx\n", hdr.magic_number);
+    printf("offset_to_ifd: %#08x\n", hdr.offset_to_ifd);
+}
 
 // this part contains the Exif section, which contains the Makernotes section.
 // Information about picture#0.
@@ -78,21 +102,22 @@ static struct entry ifd_get_entry(struct ifd ifd, size_t i)
     return ifd.entries[i];
 }
 
-static void dump_file_header(struct file_header header)
-{
-    puts("HEADER");
-    printf("byte_order: %2.2s\n", header.byte_order);
-    printf("tiff_magic_word: %#06hx\n", header.tiff_magic_word);
-    printf("cr2_major_version: %d\n", header.cr2_major_version);
-    printf("cr2_minor_version: %d\n", header.cr2_minor_version);
-    printf("raw_ifd_offset: %#08x\n\n\n", header.raw_ifd_offset);
-}
 
-static void parse_file_header(FILE *fp, struct file_header *header)
-{
-    fread(header, 1, sizeof(*header), fp);
-    rewind(fp);
-}
+/* static void dump_file_header(struct file_header header) */
+/* { */
+/*     puts("HEADER"); */
+/*     printf("byte_order: %2.2s\n", header.byte_order); */
+/*     printf("tiff_magic_word: %#06hx\n", header.tiff_magic_word); */
+/*     printf("cr2_major_version: %d\n", header.cr2_major_version); */
+/*     printf("cr2_minor_version: %d\n", header.cr2_minor_version); */
+/*     printf("raw_ifd_offset: %#08x\n\n\n", header.raw_ifd_offset); */
+/* } */
+
+/* static void parse_file_header(FILE *fp, struct file_header *header) */
+/* { */
+/*     fread(header, 1, sizeof(*header), fp); */
+/*     rewind(fp); */
+/* } */
 
 static void parse_ifd(FILE *fp, unsigned int ifd_offset, struct ifd *ifd)
 {
@@ -184,18 +209,20 @@ int main(int argc, char **argv)
     float mbytes = mb(bytes);
     printf("File size: %.4f MB\n", mbytes);
 
-    struct file_header header;
-    parse_file_header(cr, &header);
-    if (!strncmp(header.byte_order, HEADER_LITTLE_ENDIAN, BYTE_ORDER_CHARS)) {
-        puts("File: is little endian format\n\n");
-    } else if (!strncmp(header.byte_order, HEADER_BIG_ENDIAN, BYTE_ORDER_CHARS)) {
-        puts("File is big endian format\n\n");
+    struct tiff_header tiffhdr;
+    fread(&tiffhdr, 1, sizeof(tiffhdr), cr);
+    if (!strncmp(tiffhdr.endianness, HEADER_LITTLE_ENDIAN, BYTE_ORDER_CHARS)) {
+        puts("\nFile: is little endian format\n\n");
+    } else if (!strncmp(tiffhdr.endianness, HEADER_BIG_ENDIAN, BYTE_ORDER_CHARS)) {
+        puts("\nFile is big endian format\n\n");
     }
-
-    dump_file_header(header);
+    dump_tiff_header(tiffhdr);
+    struct cr2_header cr2hdr;
+    fread(&cr2hdr, 1, sizeof(cr2hdr), cr);
+    dump_cr2_header(cr2hdr);
 
     struct ifd ifds[MAX_NUMBER_OF_IFDS] = { 0 };
-    parse_all_ifds(cr, header.tiff_offset, ifds, MAX_NUMBER_OF_IFDS);
+    parse_all_ifds(cr, tiffhdr.offset_to_ifd, ifds, MAX_NUMBER_OF_IFDS);
     dump_ifds(cr, ifds, MAX_NUMBER_OF_IFDS);
     for (size_t i = 0; i < MAX_NUMBER_OF_IFDS; i++ )
         free_ifd_entries(ifds[i]);
