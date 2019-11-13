@@ -103,22 +103,6 @@ static struct entry ifd_get_entry(struct ifd ifd, size_t i)
 }
 
 
-/* static void dump_file_header(struct file_header header) */
-/* { */
-/*     puts("HEADER"); */
-/*     printf("byte_order: %2.2s\n", header.byte_order); */
-/*     printf("tiff_magic_word: %#06hx\n", header.tiff_magic_word); */
-/*     printf("cr2_major_version: %d\n", header.cr2_major_version); */
-/*     printf("cr2_minor_version: %d\n", header.cr2_minor_version); */
-/*     printf("raw_ifd_offset: %#08x\n\n\n", header.raw_ifd_offset); */
-/* } */
-
-/* static void parse_file_header(FILE *fp, struct file_header *header) */
-/* { */
-/*     fread(header, 1, sizeof(*header), fp); */
-/*     rewind(fp); */
-/* } */
-
 static void parse_ifd(FILE *fp, unsigned int ifd_offset, struct ifd *ifd)
 {
     fseek(fp, ifd_offset, SEEK_SET);
@@ -145,7 +129,7 @@ static void dump_ifd(FILE *fp, struct ifd ifd, int count)
             ifd.entries,
             ifd.next_ifd_offset);
     for (uint16_t i = 0; i < ifd.number_of_entries; i++) {
-        printf("entry number: %d\n", i);
+        printf("entry number: %d ", i);
         struct entry entry = ifd_get_entry(ifd, i);
         enum tag_type tag = get_tag_type(entry.tag_type);
         const char *tag_str = tag_type_to_field_str(tag);
@@ -153,7 +137,7 @@ static void dump_ifd(FILE *fp, struct ifd ifd, int count)
         if (entry.value)
             payload = tag_type_conv(
                 fp, tag, entry.value, entry.number_of_value);
-        printf("tag_id: %d, ", entry.tag_id);
+        printf("tag_id: %d|%#04x, ", entry.tag_id, entry.tag_id);
         printf("tag_type: %s, ", tag_str);
         printf("number_of_values: %d, ", entry.number_of_value);
         printf("value_or_start_addr_to_data: %#08x, ", entry.value);
