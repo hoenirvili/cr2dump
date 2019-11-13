@@ -83,6 +83,11 @@ struct ifd {
     unsigned int next_ifd_offset;
 };
 
+struct maker_note_ifd {
+    struct ifd ifd;
+    struct tiff_header hdr;
+};
+
 // A TIFF tag, is a logical entity which consist in:
 // an record (Directory Entry) inside an IFD, and some data.
 // These two parts are generally separated.
@@ -145,6 +150,11 @@ static void dump_ifd(FILE *fp, struct ifd ifd, int count)
     }
 }
 
+#define TAG_ID_MAKER_NOTE 0x927c
+
+// exif which consists of the same memory layout as an struct ifd
+typedef struct ifd exif;
+
 // The .CR2 file is based on the TIFF file format
 // This TIFF file has 4 Image File Directories (IFDs).
 #define MAX_NUMBER_OF_IFDS 4
@@ -157,15 +167,67 @@ static void dump_ifds(FILE *fp, struct ifd *ifds, size_t nfds)
     }
 }
 
+#define TAG_ID_EXIF 0x8769
+
+static uint16_t ifd_exif_tag_value(const struct ifd *ifd)
+{
+    for (size_t i = 0; i < ifd->number_of_entries; i++)
+        if (ifd->entries[i].tag_id == TAG_ID_EXIF)
+            return ifd->entries[i].value;
+    return 0;
+}
+
+static void parse_exif_sub_ifd(const struct ifd *ifd, exif *exif, FILE *fp)
+{
+    uint16_t value = ifd_exif_tag_value(ifd);
+    if (!value) {
+        printf("ifd_exif_tag_value() failed");
+        exit(1);
+    }
+    fseek(fp, value, SEEK_SET);
+    fread(exif, sizeof(*exif), 1, fp);
+    rewind(fp);
+}
+
+static uint16_t exif_maker_note_value(const exif *exif)
+{
+    for (size_t i = 0; i < exif->number_of_entries; i++)
+        if (exif->entries[i].tag_id == TAG_ID_MAKER_NOTE)
+            return exif->entries[i].value;
+    return 0;
+}
+
+static void parse_maker_note_ifd(
+        const exif *exif,
+        struct maker_note_ifd *mnifd,
+        FILE *fp)
+{
+    uint16_t value = exif_maker_note_value(exif);
+    if (!value) {
+        printf("ifd_exif_tag_value() failed");
+        exit(1);
+    }
+    parse_ifd(fp, value, &mnifd->ifd);
+    fseek(fp, value + mnifd->ifd.number_of_entries * sizeof(mnifd->ifd.entries), SEEK_SET);
+    rewind(fp);
+}
+
 static void parse_all_ifds(
         FILE *fp,
         unsigned int tiff_offset,
         struct ifd *ifds,
-        size_t nfds)
+        size_t nfds,
+        struct ifd *exif,
+        struct maker_note_ifd *mnifd)
 {
     for (size_t i = 0; i < nfds; i++) {
         parse_ifd(fp, tiff_offset, &ifds[i]);
         tiff_offset = ifds[i].next_ifd_offset;
+        if (i == 0) {
+            parse_exif_sub_ifd(&ifds[i], exif, fp);
+            //TODO: fix this
+            //parse_maker_note_ifd(exif, mnifd, fp);
+        }
     }
 }
 
@@ -194,7 +256,7 @@ int main(int argc, char **argv)
     printf("File size: %.4f MB\n", mbytes);
 
     struct tiff_header tiffhdr;
-    fread(&tiffhdr, 1, sizeof(tiffhdr), cr);
+    fread(&tiffhdr, sizeof(tiffhdr), 1, cr);
     if (!strncmp(tiffhdr.endianness, HEADER_LITTLE_ENDIAN, BYTE_ORDER_CHARS)) {
         puts("\nFile: is little endian format\n\n");
     } else if (!strncmp(tiffhdr.endianness, HEADER_BIG_ENDIAN, BYTE_ORDER_CHARS)) {
@@ -202,11 +264,13 @@ int main(int argc, char **argv)
     }
     dump_tiff_header(tiffhdr);
     struct cr2_header cr2hdr;
-    fread(&cr2hdr, 1, sizeof(cr2hdr), cr);
+    fread(&cr2hdr, sizeof(cr2hdr), 1, cr);
     dump_cr2_header(cr2hdr);
 
-    struct ifd ifds[MAX_NUMBER_OF_IFDS] = { 0 };
-    parse_all_ifds(cr, tiffhdr.offset_to_ifd, ifds, MAX_NUMBER_OF_IFDS);
+    struct ifd ifds[MAX_NUMBER_OF_IFDS];
+    exif exif_sub_ifd;
+    struct maker_note_ifd mnifd;
+    parse_all_ifds(cr, tiffhdr.offset_to_ifd, ifds, MAX_NUMBER_OF_IFDS, &exif_sub_ifd, &mnifd);
     dump_ifds(cr, ifds, MAX_NUMBER_OF_IFDS);
     for (size_t i = 0; i < MAX_NUMBER_OF_IFDS; i++ )
         free_ifd_entries(ifds[i]);
