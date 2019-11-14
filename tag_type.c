@@ -221,9 +221,9 @@ enum tag_type get_tag_type(uint16_t t)
     return (enum tag_type)(t);
 }
 
-const char *tag_type_conv(FILE *fp, enum tag_type t, uint32_t addr, size_t count)
+const char *tag_type_conv(FILE *cr, enum tag_type t, uint32_t addr, size_t count)
 {
-    return tag_type_table[t].convert(fp, addr, count);
+    return tag_type_table[t].convert(cr, addr, count);
 }
 
 const char *tag_type_to_field_str(enum tag_type t)

@@ -1,3 +1,4 @@
 main
 .cquery
 .main
+main.d*
