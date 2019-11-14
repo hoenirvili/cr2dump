@@ -96,12 +96,12 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)         \
         const char *fmt = sfmt;                                             \
         n = snprintf(NULL, 0, fmt, _buffer[i].p, _buffer[i].q);             \
         if (n < 0) {                                                        \
-            printf("sprintf count failed\n");                               \
+            printf("rational_fn() sprintf count failed\n");                 \
             exit(1);                                                        \
         }                                                                   \
         left_over = left_over - n;                                          \
         if (left_over <= 0) {                                               \
-            printf("cannot write more bytes into buffer\n");                \
+            printf("rationl_fn() cannot write more bytes into buffer\n");   \
             exit(1);                                                        \
         }                                                                   \
         add_line += n;                                                      \
@@ -144,12 +144,12 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             
         const char *fmt = sfmt;                                                 \
         n = snprintf(NULL, 0, fmt, _buffer[i]);                                 \
         if (n < 0) {                                                            \
-            printf("sprintf count failed\n");                                   \
+            printf("conversion_fn() sprintf count failed\n");                   \
             exit(1);                                                            \
         }                                                                       \
         left_over = left_over - n;                                              \
         if (left_over <= 0) {                                                   \
-            printf("cannot write more bytes into buffer\n");                    \
+            printf("conversion_fn() cannot write more bytes into buffer\n");    \
             exit(1);                                                            \
         }                                                                       \
         add_line += n;                                                          \
@@ -198,7 +198,7 @@ static const char *tag_type_str_list[] = {
 
 #define END (tag_type_table){}
 
-struct tag_type_table {
+static struct tag_type_table {
     const char *(*convert)(FILE *fp, uint32_t addr, size_t count);
 }tag_type_table[] = {
     { no_tag_specified_fn },
@@ -216,7 +216,7 @@ struct tag_type_table {
     { float_8_byte_fn },
 };
 
-enum tag_type get_tag_type(uint16_t t)
+enum tag_type tag_type(uint16_t t)
 {
     return (enum tag_type)(t);
 }

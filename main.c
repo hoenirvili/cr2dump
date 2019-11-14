@@ -41,8 +41,13 @@ int main(int argc, char **argv)
     cr2_header_dump(cr2_header, stdout);
 
     struct ifd ifds[N_IFDS];
-    ifd_parse(ifds, tiff_header.offset_to_ifd, cr);
+    ifds_parse(ifds, N_IFDS, tiff_header.offset_to_ifd, cr);
     ifds_dump(ifds, N_IFDS, cr, stdout);
+
+    struct ifd exif;
+    ifd_parse(&exif, ifd_exif_value(ifds[0]), cr);
+    puts("\n\nEXIF");
+    ifd_dump(exif, cr, stdout);
     ifd_entries_free(ifds);
 
     fclose(cr);
