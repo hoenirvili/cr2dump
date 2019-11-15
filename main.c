@@ -49,7 +49,14 @@ int main(int argc, char **argv)
     ifd_parse(&exif, ifd_exif_value(ifds[0]), cr);
     puts("\n\nEXIF");
     ifd_dump(exif, cr, stdout);
-    ifd_entries_free(ifds);
 
+    struct ifd makernote;
+    ifd_parse(&makernote, ifd_maker_note(exif), cr);
+    puts("\nMAKERNOTE");
+    ifd_dump(makernote, cr, stdout);
+
+    ifd_entries_free(exif);
+    ifd_entries_free(makernote);
+    ifds_entries_free(ifds, N_IFDS);
     fclose(cr);
 }

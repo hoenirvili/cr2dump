@@ -16,7 +16,7 @@ struct ifd {
     unsigned int next_ifd_offset;
 };
 
-extern void ifd_entries_free(struct ifd *ifd);
+extern void ifd_entries_free(struct ifd ifd);
 
 extern void ifd_parse(struct ifd *ifd, size_t offset, FILE *out);
 
@@ -26,8 +26,12 @@ extern void ifds_dump(struct ifd *ifds, size_t count, FILE *cr, FILE *out);
 
 extern void ifds_parse(struct ifd *ifd, size_t count, size_t offset, FILE *cr);
 
+extern void ifds_entries_free(struct ifd *ifds, size_t count);
+
 extern uint16_t ifd_exif_value(struct ifd ifd);
-//
+
+extern uint16_t ifd_maker_note(struct ifd ifd);
+
 // A TIFF tag, is a logical entity which consist in:
 // an record (Directory Entry) inside an IFD, and some data.
 // These two parts are generally separated.

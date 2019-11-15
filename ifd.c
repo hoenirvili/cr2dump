@@ -23,9 +23,15 @@ void ifds_parse(struct ifd *ifds, size_t count, size_t offset, FILE *cr)
     }
 }
 
-void ifd_entries_free(struct ifd *ifd)
+void ifd_entries_free(struct ifd ifd)
 {
-    free(ifd->entries);
+    free(ifd.entries);
+}
+
+void ifds_entries_free(struct ifd *ifds, size_t count)
+{
+    for (size_t i = 0; i < count; i++)
+        free(ifds[i].entries);
 }
 
 static inline struct entry ifd_entry(const struct ifd ifd, size_t i)
@@ -67,14 +73,24 @@ void ifds_dump(struct ifd *ifds, size_t count, FILE *cr, FILE *out)
     }
 }
 
-#define TAG_ID_MAKER_NOTE 0x927c
-
 #define TAG_ID_EXIF 0x8769
+
+static uint16_t ifd_value(struct ifd ifd, uint16_t value)
+{
+    for (size_t i = 0; i < ifd.number_of_entries; i++)
+        if (ifd.entries[i].tag_id == value)
+            return ifd.entries[i].value;
+    return 0;
+}
 
 uint16_t ifd_exif_value(struct ifd ifd)
 {
-    for (size_t i = 0; i < ifd.number_of_entries; i++)
-        if (ifd.entries[i].tag_id == TAG_ID_EXIF)
-            return ifd.entries[i].value;
-    return 0;
+    return ifd_value(ifd, TAG_ID_EXIF);
+}
+
+#define TAG_ID_MAKER_NOTE 0x927c
+
+uint16_t ifd_maker_note(struct ifd exif)
+{
+    return ifd_value(exif, TAG_ID_MAKER_NOTE);
 }
