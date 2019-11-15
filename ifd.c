@@ -39,14 +39,14 @@ void entry_dump(struct entry entry, FILE *cr, FILE *out, int i)
     enum tag_type tag = tag_type(entry.tag_type);
     const char *tag_str = tag_type_to_field_str(tag);
     const char *payload = "";
-    /* if (entry.value) */
-    /*     payload = tag_type_conv( */
-    /*             cr, tag, entry.value, entry.number_of_value); */
+    if (entry.value)
+        payload = tag_type_conv(
+                cr, tag, entry.value, entry.number_of_value);
     fprintf(out, "tag_id: %d|%#04x, ", entry.tag_id, entry.tag_id);
     fprintf(out, "tag_type: %s, ", tag_str);
     fprintf(out, "number_of_values: %d, ", entry.number_of_value);
-    fprintf(out, "value_or_start_addr_to_data: %#08x\n", entry.value);
-    //fprintf(out, "unmarshal value: \"%s\"\n", payload);
+    fprintf(out, "value_or_start_addr_to_data: %#08x ", entry.value);
+    fprintf(out, "unmarshal value: \"%s\"\n", payload);
 }
 
 static const char *dump_fmt = "number_of_entries: %d, in mem: %p, next_ifd_offset: %#08x\n\n";

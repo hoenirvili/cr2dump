@@ -21,7 +21,7 @@ enum tag_type {
     end_tag                 /* 13 = end of the enum */
 };
 
-#define TAG_TYPE_ENUM_COUNT end_tag
+#define TAG_TYPE_ENUM_COUNT (int)(end_tag - no_tag)
 
 extern const char *tag_type_to_field_str(enum tag_type t);
 

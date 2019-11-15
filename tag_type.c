@@ -3,12 +3,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdbool.h>
+
 #include "tag_type.h"
-
-// let it be 8k bytes, should be enough, (IDK to be honst)
-#define MAX_BUFFER_SIZE 8192 + 1
-
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 static bool is_bad_char(char a)
 {
@@ -47,7 +43,10 @@ static void trim_unnecessary_chars(char *buff, size_t n)
         }
     }
 }
-// we could alloc memory for ever str conversion but I'm a cheap asshole
+
+// let it be 8k bytes, should be enough, (IDK to be honst)
+#define MAX_BUFFER_SIZE 8192 + 1
+
 static char buffer[MAX_BUFFER_SIZE];
 
 static const char *no_tag_specified_fn(FILE *fp, uint32_t addr, size_t count) { return NULL; }
@@ -77,8 +76,15 @@ static const char *string_fn(FILE *fp, uint32_t addr, size_t count)
 
 #define WHEN_TO_ADD_NEWLINE 50
 
-struct signed_rational { long p, q; };
-struct unsigned_rational { unsigned long p, q; };
+struct signed_rational {
+    long p;
+    long q;
+};
+
+struct unsigned_rational {
+    unsigned long p;
+    unsigned long q;
+};
 
 #define CONVERSION_RATIONAL_FN(name, type, tfmt)                            \
 static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)         \
@@ -96,8 +102,9 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)         \
         const char *fmt = sfmt;                                             \
         n = snprintf(NULL, 0, fmt, _buffer[i].p, _buffer[i].q);             \
         if (n < 0) {                                                        \
-            printf("rational_fn() sprintf count failed\n");                 \
-            exit(1);                                                        \
+            strcpy(&buffer[strlen(buffer)-3], "...");                       \
+            buffer[strlen(buffer)-1] = 0;                                   \
+            return buffer;                                                  \
         }                                                                   \
         left_over = left_over - n;                                          \
         if (left_over <= 0) {                                               \
@@ -136,7 +143,7 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             
     }                                                                           \
     const char *sfmt = #tfmt" ";                                                \
     const char *nfmt = #tfmt"\n";                                               \
-    ssize_t left_over = sizeof(buffer);                                         \
+    ssize_t left_over = MAX_BUFFER_SIZE;                                        \
     ssize_t n = 0;                                                              \
     size_t add_line = 0;                                                        \
     size_t current = 0;                                                         \
@@ -149,8 +156,9 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             
         }                                                                       \
         left_over = left_over - n;                                              \
         if (left_over <= 0) {                                                   \
-            printf("conversion_fn() cannot write more bytes into buffer\n");    \
-            exit(1);                                                            \
+            strcpy(&buffer[strlen(buffer)-3], "...");                           \
+            buffer[strlen(buffer)-1] = 0;                                       \
+            return buffer;                                                      \
         }                                                                       \
         add_line += n;                                                          \
         if (add_line >= WHEN_TO_ADD_NEWLINE) {                                  \
@@ -179,41 +187,24 @@ CONVERSION_FN(signed_long, int32_t, %d)
 CONVERSION_FN(float_4_byte, float, %f)
 CONVERSION_FN(float_8_byte, double, %f)
 
-static const char *tag_type_str_list[] = {
-    "no tag specified",
-    "unsigned char",
-    "string (with an ending zero)",
-    "unsigned short (2 bytes)",
-    "unsigned long  (4 bytes)",
-    "unsigned rational (2 unsinged long)",
-    "signed char",
-    "byte sequence",
-    "signed short",
-    "signed long",
-    "signed rational (2 signed long)",
-    "float, 4 bytes, IEEE format",
-    "float, 8 bytes, IEEE format",
-    NULL,
-};
-
-#define END (tag_type_table){}
-
 static struct tag_type_table {
+    enum tag_type tag;
+    const char *str;
     const char *(*convert)(FILE *fp, uint32_t addr, size_t count);
 }tag_type_table[] = {
-    { no_tag_specified_fn },
-    { unsigned_char_fn },
-    { string_fn },
-    { unsigned_short_fn },
-    { unsigned_long_fn },
-    { unsigned_rational_fn },
-    { signed_char_fn },
-    { byte_sequence_fn },
-    { signed_short_fn },
-    { signed_long_fn },
-    { signed_rational_fn },
-    { float_4_byte_fn },
-    { float_8_byte_fn },
+    { no_tag, "no tag specified", no_tag_specified_fn },
+    { tag_unsigned_char, "unsigned char", unsigned_char_fn },
+    { tag_string, "string (with an ending zero)", string_fn },
+    { tag_unsigned_short, "unsigned short (2 bytes)", unsigned_short_fn },
+    { tag_unsigned_long, "unsigned long (4 bytes)", unsigned_long_fn },
+    { tag_unsigned_rational, "unsigned rational (2 unsigned long)", unsigned_rational_fn },
+    { tag_signed_char, "signed char", signed_char_fn },
+    { tag_byte_sequence, "byte sequence", byte_sequence_fn },
+    { tag_signed_short, "signed short", signed_short_fn },
+    { tag_signed_long, "signed long", signed_long_fn },
+    { tag_signed_rational, "signed rational (2 signed long)", signed_rational_fn },
+    { tag_float_4bytes, "float, 4 bytes, IEEE format", float_4_byte_fn },
+    { tag_float_8bytes, "float, 8 bytes, IEEE format", float_8_byte_fn },
 };
 
 enum tag_type tag_type(uint16_t t)
@@ -226,11 +217,19 @@ const char *tag_type_conv(FILE *cr, enum tag_type t, uint32_t addr, size_t count
     return tag_type_table[t].convert(cr, addr, count);
 }
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+
+char *no_tag_str="no tag found";
+
+static_assert(ARRAY_SIZE(tag_type_table) == TAG_TYPE_ENUM_COUNT,
+        "we should have the same number of items");
+
 const char *tag_type_to_field_str(enum tag_type t)
 {
-    // if this fails then I know that the user(me) fucked it up. :)
     assert("we added or removed an enum" && t > 0 && t < TAG_TYPE_ENUM_COUNT);
-    static_assert(ARRAY_SIZE(tag_type_str_list)-1 == TAG_TYPE_ENUM_COUNT,
-            "tag_type_str_listt should have the same members as the enum");
-    return tag_type_str_list[t];
+    size_t n = ARRAY_SIZE(tag_type_table);
+    for (size_t i = 0; i < n; i++)
+        if (tag_type_table[i].tag == t)
+            return tag_type_table[i].str;
+    return no_tag_str;
 }
