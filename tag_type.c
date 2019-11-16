@@ -90,6 +90,8 @@ struct unsigned_rational {
 static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)         \
 {                                                                           \
     type _buffer[count];                                                    \
+    memset(_buffer, 0, sizeof(_buffer));                                    \
+    memset(buffer, 0, sizeof(buffer));                                      \
     fseek(fp, addr, SEEK_SET);                                              \
     fread(_buffer, sizeof(_buffer[0]), count, fp);                          \
     const char *sfmt = #tfmt" ";                                            \
@@ -103,7 +105,7 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)         \
         n = snprintf(NULL, 0, fmt, _buffer[i].p, _buffer[i].q);             \
         if (n < 0) {                                                        \
             strcpy(&buffer[strlen(buffer)-3], "...");                       \
-            buffer[strlen(buffer)-1] = 0;                                   \
+            buffer[strlen(buffer)] = 0;                                     \
             return buffer;                                                  \
         }                                                                   \
         left_over = left_over - n;                                          \
@@ -124,7 +126,7 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)         \
         current += n;                                                       \
     }                                                                       \
     rewind(fp);                                                             \
-    buffer[strlen(buffer)-1] = 0;                                           \
+    buffer[strlen(buffer)] = 0;                                             \
     return buffer;                                                          \
 }
 
@@ -135,6 +137,8 @@ CONVERSION_RATIONAL_FN(signed_rational, struct signed_rational, %#08x/%#08x)
 static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             \
 {                                                                               \
     type _buffer[count];                                                        \
+    memset(_buffer, 0, sizeof(_buffer));                                        \
+    memset(buffer, 0, sizeof(buffer));                                          \
     if (count > 1) {                                                            \
         fseek(fp, addr, SEEK_SET);                                              \
         fread(&_buffer[0], sizeof(_buffer[0]), count, fp);                      \
@@ -157,7 +161,7 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             
         left_over = left_over - n;                                              \
         if (left_over <= 0) {                                                   \
             strcpy(&buffer[strlen(buffer)-3], "...");                           \
-            buffer[strlen(buffer)-1] = 0;                                       \
+            buffer[strlen(buffer)] = 0;                                         \
             return buffer;                                                      \
         }                                                                       \
         add_line += n;                                                          \
@@ -174,14 +178,14 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             
     }                                                                           \
     if (count > 1)                                                              \
         rewind(fp);                                                             \
-    buffer[strlen(buffer)-1] = 0;                                               \
+    buffer[strlen(buffer)] = 0;                                                 \
     return buffer;                                                              \
 }
 
 CONVERSION_FN(unsigned_short, uint16_t, %hu)
 CONVERSION_FN(unsigned_long, uint32_t, %d)
 CONVERSION_FN(signed_char, char, %c)
-CONVERSION_FN(byte_sequence, uint8_t, %x)
+CONVERSION_FN(byte_sequence, uint8_t, %02x)
 CONVERSION_FN(signed_short, int16_t, %d)
 CONVERSION_FN(signed_long, int32_t, %d)
 CONVERSION_FN(float_4_byte, float, %f)
