@@ -49,7 +49,12 @@ static void trim_unnecessary_chars(char *buff, size_t n)
 
 static char buffer[MAX_BUFFER_SIZE];
 
-static const char *no_tag_specified_fn(FILE *fp, uint32_t addr, size_t count) { return NULL; }
+static const char *no_tag_specified_fn(FILE *fp, uint32_t addr, size_t count) {
+    (void)fp;
+    (void)addr;
+    (void)count;
+    return NULL;
+}
 
 static_assert(sizeof(char) == 1, "char is one byte");
 
@@ -143,7 +148,7 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             
         fseek(fp, addr, SEEK_SET);                                              \
         fread(&_buffer[0], sizeof(_buffer[0]), count, fp);                      \
     } else {                                                                    \
-        memcpy(_buffer, &addr, sizeof(_buffer[0]));                             \
+        memcpy(_buffer, &addr, sizeof(addr));                                   \
     }                                                                           \
     const char *sfmt = #tfmt" ";                                                \
     const char *nfmt = #tfmt"\n";                                               \
@@ -153,7 +158,7 @@ static const char *name##_fn(FILE *fp, uint32_t addr, size_t count)             
     size_t current = 0;                                                         \
     for (size_t i = 0; i < count; i++) {                                        \
         const char *fmt = sfmt;                                                 \
-        n = snprintf(NULL, 0, fmt, _buffer[i]);                                 \
+        n = snprintf(NULL, 0, fmt, _buffer[i]);                                                                  \
         if (n < 0) {                                                            \
             printf("conversion_fn() sprintf count failed\n");                   \
             exit(1);                                                            \
@@ -223,7 +228,7 @@ const char *tag_type_conv(FILE *cr, enum tag_type t, uint32_t addr, size_t count
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
-char *no_tag_str="no tag found";
+const char *no_tag_str="no tag found";
 
 static_assert(ARRAY_SIZE(tag_type_table) == TAG_TYPE_ENUM_COUNT,
         "we should have the same number of items");

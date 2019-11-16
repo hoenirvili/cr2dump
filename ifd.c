@@ -55,11 +55,10 @@ void entry_dump(struct entry entry, FILE *cr, FILE *out, int i)
     fprintf(out, "unmarshal value: \"%s\"\n", payload);
 }
 
-static const char *dump_fmt = "number_of_entries: %d, in mem: %p, next_ifd_offset: %#08x\n\n";
 
 void ifd_dump(struct ifd ifd, FILE *cr, FILE *out)
 {
-    fprintf(out, dump_fmt, ifd.number_of_entries, ifd.entries, ifd.next_ifd_offset);
+    fprintf(out, "number_of_entries: %d, in mem: %p, next_ifd_offset: %#08x\n\n", ifd.number_of_entries, (void*)ifd.entries, ifd.next_ifd_offset);
     size_t n = ifd.number_of_entries;
     for (size_t i = 0; i < n; i++)
         entry_dump(ifd_entry(ifd, i), cr, out, i);
