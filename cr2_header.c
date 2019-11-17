@@ -15,5 +15,3 @@ void cr2_header_parse(struct cr2_header *hdr, FILE *fp)
     fread(hdr, sizeof(*hdr), 1, fp);
     rewind(fp);
 }
-
-

@@ -2,13 +2,13 @@
 #include "file.h"
 
 // Kilobytes in bytes
-static const size_t FILE_KB = 1024;
+static const float FILE_KB = 1024.0f;
 
 // Megabytes in bytes
-static const size_t FILE_MB = FILE_KB * 1024;
+static const float FILE_MB = FILE_KB * 1024.0f;
 
 // fsize returns the file size in bytes
-int file_size(FILE *fp)
+off_t file_size(FILE *fp)
 {
     struct stat buf;
     int err = fstat(fileno(fp), &buf);
@@ -18,6 +18,6 @@ int file_size(FILE *fp)
 }
 
 // MB transform bytes to megabytes
-float file_mb(size_t bytes) {
+float file_mb(off_t bytes ) {
     return bytes / FILE_MB;
 }
