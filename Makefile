@@ -9,7 +9,7 @@ ifeq ($(CC),gcc)
     CFLAGS += -Wjump-misses-init -Wlogical-op
 endif
 
-CFLAGS += "-O2"
+CFLAGS += -O2
 
 all:
 	 $(CC) $(CFLAGS) main.c cr2_header.c file.c ifd.c tag_type.c tiff_header.c -o main
